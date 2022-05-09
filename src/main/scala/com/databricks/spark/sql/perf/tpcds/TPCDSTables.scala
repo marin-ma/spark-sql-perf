@@ -59,7 +59,8 @@ class TPCDSTables(
   dsdgenDir: String,
   scaleFactor: String,
   useDoubleForDecimal: Boolean = false,
-  useStringForDate: Boolean = false)
+  useStringForDate: Boolean = false,
+  veloxCompatibleConversion: Boolean = false)
   extends Tables(sqlContext, scaleFactor, useDoubleForDecimal, useStringForDate) {
   import sqlContext.implicits._
 

@@ -94,8 +94,12 @@ trait DataGenerator extends Serializable {
 }
 
 
-abstract class Tables(sqlContext: SQLContext, scaleFactor: String,
-    useDoubleForDecimal: Boolean = false, useStringForDate: Boolean = false)
+abstract class Tables(
+    sqlContext: SQLContext,
+    scaleFactor: String,
+    useDoubleForDecimal: Boolean = false,
+    useStringForDate: Boolean = false,
+    veloxCompatibleConversion: Boolean = false)
     extends Serializable {
 
   def dataGenerator: DataGenerator
@@ -177,7 +181,20 @@ abstract class Tables(sqlContext: SQLContext, scaleFactor: String,
       numPartitions: Int): Unit = {
       val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Ignore
 
-      val data = df(format != "text", numPartitions)
+      val data = if (veloxCompatibleConversion) {
+        val data = df(format != "text", numPartitions)
+        val fields = data.queryExecution.analyzed.output.map { attr =>
+          attr.dataType match {
+            case LongType | IntegerType => s"cast(${attr.name} as double) as ${attr.name}"
+            case DateType => s"cast(to_timestamp(${attr.name}) as double) / 86400 as ${attr.name}"
+            case _ => s"${attr.name}"
+          }
+        }
+        data.selectExpr(fields: _*)
+      } else {
+        df(format != "text", numPartitions)
+      }
+
       val tempTableName = s"${name}_text"
       data.createOrReplaceTempView(tempTableName)
 
